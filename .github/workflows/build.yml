@@ -122,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lightsout-${{ env.RID }}
-          path: dist/$RID
+          path: dist/${{ env.RID }}
           if-no-files-found: error
 
   # ------------------------------------------------------------- release
