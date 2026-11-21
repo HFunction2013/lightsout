@@ -49,10 +49,8 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            asset: lightsout-1.0.0-win-x64
           - os: ubuntu-latest
             rid: linux-x64
-            asset: lightsout-1.0.0-linux-x64
 
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +81,10 @@ jobs:
         if: runner.os == 'Linux'
         run: cp build/native/liblightsout.so dist/${{ matrix.rid }}/
 
+      - name: Drop debug symbols
+        shell: bash
+        run: rm -f dist/${{ matrix.rid }}/*.pdb dist/${{ matrix.rid }}/*.dbg
+
       - name: Show package contents
         shell: bash
         run: ls -la dist/${{ matrix.rid }}
@@ -90,7 +92,7 @@ jobs:
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
+          name: lightsout-${{ matrix.rid }}
           path: dist/${{ matrix.rid }}
           if-no-files-found: error
 
@@ -110,11 +112,14 @@ jobs:
 
       - name: Pack release archives
         run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
           cd artifacts
           for d in lightsout-*; do
-            (cd "$d" && zip -r "../$d.zip" .)
+            rid="${d#lightsout-}"
+            (cd "$d" && zip -q -r "../lightsout-${version}-${rid}.zip" .)
           done
-          ls -la
+          ls -lh
 
       - name: Create release
         uses: softprops/action-gh-release@v2
