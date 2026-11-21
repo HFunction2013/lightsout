@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -13,8 +14,9 @@ internal static class MessageDialog
         var window = new Window
         {
             Title = title,
-            Width = 460,
-            Height = 230,
+            Width = 560,
+            SizeToContent = SizeToContent.Height,
+            MaxHeight = 560,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = new SolidColorBrush(Color.Parse("#1F212A"))
@@ -38,10 +40,18 @@ internal static class MessageDialog
         };
         ok.Click += (_, _) => window.Close();
 
+        var scroller = new ScrollViewer
+        {
+            Content = label,
+            MaxHeight = 420,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
+
         var panel = new DockPanel();
         DockPanel.SetDock(ok, Dock.Bottom);
         panel.Children.Add(ok);
-        panel.Children.Add(label);
+        panel.Children.Add(scroller);
         window.Content = panel;
 
         window.Opened += (_, _) => ok.Focus();

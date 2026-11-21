@@ -23,6 +23,7 @@ internal sealed class MainWindow : Window
     private bool _edit;
     private byte[]? _hint;
     private int _hintCount;
+    private bool _hintMinimal;
 
     private static readonly IBrush BgBrush = new SolidColorBrush(Color.Parse("#16171E"));
     private static readonly IBrush StatusBrush = new SolidColorBrush(Color.Parse("#1F212A"));
@@ -112,9 +113,13 @@ internal sealed class MainWindow : Window
         blank.Click += (_, _) => NewBlankBoard();
         solve.Items.Add(blank);
 
-        var run = new MenuItem { Header = "Solve" };
-        run.Click += (_, _) => SolveBoard();
-        solve.Items.Add(run);
+        var runAny = new MenuItem { Header = "Solve (any)" };
+        runAny.Click += (_, _) => SolveBoard(false);
+        solve.Items.Add(runAny);
+
+        var runMin = new MenuItem { Header = "Solve minimum" };
+        runMin.Click += (_, _) => SolveBoard(true);
+        solve.Items.Add(runMin);
 
         var clear = new MenuItem { Header = "Clear marks" };
         clear.Click += (_, _) =>
@@ -178,19 +183,20 @@ internal sealed class MainWindow : Window
         UpdateStatus();
     }
 
-    private void SolveBoard()
+    private void SolveBoard(bool wantMin)
     {
         if (_cells.Length != _rows * _cols)
             return;
 
         var clicks = new byte[_cells.Length];
         int cnt;
-        int rc = NativeSolver.Solve(_rows, _cols, _cells, true, clicks, out cnt);
+        int rc = NativeSolver.Solve(_rows, _cols, _cells, wantMin, clicks, out cnt);
 
         if (rc == 1)
         {
             _hint = clicks;
             _hintCount = cnt;
+            _hintMinimal = wantMin;
             _edit = false;
             _moves = 0;
             _solved = false;
@@ -212,6 +218,7 @@ internal sealed class MainWindow : Window
     {
         _hint = null;
         _hintCount = 0;
+        _hintMinimal = false;
     }
 
     private void OnCellPressed(int r, int c)
@@ -228,7 +235,6 @@ internal sealed class MainWindow : Window
             if (_solved)
                 return;
             Press(r, c);
-            ClearHint();
             _moves++;
             if (AllDark())
                 _solved = true;
@@ -276,13 +282,15 @@ internal sealed class MainWindow : Window
         }
         else if (_hint is not null)
         {
-            _statusLeft.Text = $"Solution: {_hintCount} presses  -  click the marked cells (C clears the marks)";
+            _statusLeft.Text = _hintMinimal
+                ? $"Minimum solution: {_hintCount} presses  -  click the marked cells (C / Clear marks removes them)"
+                : $"Solution: {_hintCount} presses (not necessarily minimal)  -  click the marked cells (C / Clear marks removes them)";
             _statusLeft.Foreground = HintBrush;
             _statusLeft.FontWeight = FontWeight.SemiBold;
         }
         else if (_edit)
         {
-            _statusLeft.Text = "Edit mode  -  click cells to light them, then Solve -> Solve";
+            _statusLeft.Text = "Edit mode  -  click cells to light them, then Solve -> Solve (any) or Solve minimum";
             _statusLeft.Foreground = TextBrush;
             _statusLeft.FontWeight = FontWeight.SemiBold;
         }
@@ -308,14 +316,15 @@ internal sealed class MainWindow : Window
     {
         await MessageDialog.Show(this, "About",
             "Lights Out\n\n" +
-            "Click a cell to toggle it and its four neighbours.  Turn every\n" +
-            "lamp off to win.\n\n" +
-            "Solve menu: New board (blank) starts an empty board where a click\n" +
-            "lights up that cell only; Solve marks the fewest presses that\n" +
-            "clear the board.\n\n" +
+            "Click a cell to toggle it and its four neighbours.  Turn every lamp off to win.\n\n" +
+            "Solve menu:\n" +
+            "  New board (blank) - empty board; a click lights that cell only.\n" +
+            "  Solve (any) - a quick solution, not necessarily the fewest presses.\n" +
+            "  Solve minimum - the fewest presses that clear the board.\n" +
+            "  Clear marks - remove the cyan rings.\n\n" +
             $"Solver: {NativeSolver.Version()} (C library)\n\n" +
-            "Keys: N new game, R restart, B blank board, S solve, C clear\n" +
-            "marks, Esc quit.");
+            "Keys: N new game, R restart, B blank board, S solve (any), M solve minimum,\n" +
+            "C clear marks, Esc quit.");
     }
 
     /* -------------------------------------------------------------- input */
@@ -334,7 +343,11 @@ internal sealed class MainWindow : Window
                 e.Handled = true;
                 break;
             case Key.S:
-                SolveBoard();
+                SolveBoard(false);
+                e.Handled = true;
+                break;
+            case Key.M:
+                SolveBoard(true);
                 e.Handled = true;
                 break;
             case Key.C:
