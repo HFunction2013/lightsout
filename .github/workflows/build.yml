@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-14]
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +38,10 @@ jobs:
         if: runner.os == 'Windows'
         run: ./build/native/Release/selftest.exe
 
+      - name: Self test (macOS)
+        if: runner.os == 'macOS'
+        run: ./build/native/selftest
+
   # --------------------------------------------------------------- app
   app:
     name: app (${{ matrix.rid }})
@@ -51,6 +55,10 @@ jobs:
             rid: win-x64
           - os: ubuntu-22.04
             rid: linux-x64
+          - os: macos-14
+            rid: osx-arm64
+          - os: macos-13
+            rid: osx-x64
 
     steps:
       - uses: actions/checkout@v4
@@ -81,9 +89,13 @@ jobs:
         if: runner.os == 'Linux'
         run: cp build/native/liblightsout.so dist/${{ matrix.rid }}/
 
+      - name: Bundle native library (macOS)
+        if: runner.os == 'macOS'
+        run: cp build/native/liblightsout.dylib dist/${{ matrix.rid }}/
+
       - name: Drop debug symbols
         shell: bash
-        run: rm -f dist/${{ matrix.rid }}/*.pdb dist/${{ matrix.rid }}/*.dbg
+        run: rm -rf dist/${{ matrix.rid }}/*.pdb dist/${{ matrix.rid }}/*.dbg dist/${{ matrix.rid }}/*.dSYM
 
       - name: Show package contents
         shell: bash
