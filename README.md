@@ -14,10 +14,12 @@ on a dark board, which means every start position is solvable.
 - Dark theme, rounded cells, hover outline, status bar with move counter.
 - **Solve -> New board (blank)**: an empty board in edit mode where a click lights up
   only that cell, so any position can be entered by hand.
-- **Solve -> Solve**: asks the C library for the fewest presses that clear the board and
-  marks every cell to press with a ring.
-- **Solve -> Clear marks** removes the marks.
-- Keyboard: `N` new game, `R` restart, `B` blank board, `S` solve, `C` clear marks, `Esc` quit.
+- **Solve -> Solve (any)**: a quick solution that clears the board but is not necessarily
+  the fewest presses; the marked cells are drawn with a ring.
+- **Solve -> Solve minimum**: the fewest presses that clear the board.
+- **Solve -> Clear marks** removes the rings - they are not cleared by clicking the board.
+- Keyboard: `N` new game, `R` restart, `B` blank board, `S` solve (any), `M` solve minimum,
+  `C` clear marks, `Esc` quit.
 
 ## Solver
 
