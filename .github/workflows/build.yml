@@ -64,7 +64,9 @@ jobs:
           - os: ubuntu-22.04
             rid: linux-x64
           - os: macos-latest
-            rid: osx
+            rid: osx-arm64
+          - os: macos-15-intel
+            rid: osx-x64
 
     steps:
       - uses: actions/checkout@v4
@@ -76,16 +78,6 @@ jobs:
       - name: Install NativeAOT prerequisites (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
-
-      - name: Resolve macOS runtime identifier
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          if [ "$(uname -m)" = "arm64" ]; then
-            echo "RID=osx-arm64" >> "$GITHUB_ENV"
-          else
-            echo "RID=osx-x64" >> "$GITHUB_ENV"
-          fi
 
       - name: Configure native library
         run: cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
@@ -112,7 +104,7 @@ jobs:
 
       - name: Drop debug symbols
         shell: bash
-        run: rm -rf dist/$RID/*.pdb dist/$RID/*.dbg dist/$RID/*.dSYM
+        run: rm -rf dist/$RID/*.pdb dist/$RID/*.dbg dist/$RID/*.dSYM dist/$RID/*.dsym
 
       - name: Show package contents
         shell: bash
