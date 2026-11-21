@@ -16,6 +16,8 @@ jobs:
   native:
     name: solver (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      RID: ${{ matrix.rid }}
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +40,10 @@ jobs:
         if: runner.os == 'Windows'
         run: ./build/native/Release/selftest.exe
 
+      - name: Runner info (macOS)
+        if: runner.os == 'macOS'
+        run: uname -m; sw_vers; xcodebuild -version | head -1
+
       - name: Self test (macOS)
         if: runner.os == 'macOS'
         run: ./build/native/selftest
@@ -47,6 +53,8 @@ jobs:
     name: app (${{ matrix.rid }})
     needs: native
     runs-on: ${{ matrix.os }}
+    env:
+      RID: ${{ matrix.rid }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,10 +63,8 @@ jobs:
             rid: win-x64
           - os: ubuntu-22.04
             rid: linux-x64
-          - os: macos-14
-            rid: osx-arm64
-          - os: macos-13
-            rid: osx-x64
+          - os: macos-latest
+            rid: osx
 
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +77,16 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
+      - name: Resolve macOS runtime identifier
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [ "$(uname -m)" = "arm64" ]; then
+            echo "RID=osx-arm64" >> "$GITHUB_ENV"
+          else
+            echo "RID=osx-x64" >> "$GITHUB_ENV"
+          fi
+
       - name: Configure native library
         run: cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
 
@@ -78,34 +94,35 @@ jobs:
         run: cmake --build build/native -j 4 --config Release
 
       - name: Publish Avalonia app (NativeAOT)
-        run: dotnet publish src/LightsOut/LightsOut.csproj -c Release -r ${{ matrix.rid }} -o dist/${{ matrix.rid }} --nologo
+        shell: bash
+        run: dotnet publish src/LightsOut/LightsOut.csproj -c Release -r $RID -o dist/$RID --nologo
 
       - name: Bundle native library (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Copy-Item build/native/Release/lightsout.dll dist/${{ matrix.rid }}/
+        run: Copy-Item build/native/Release/lightsout.dll dist/$env:RID/
 
       - name: Bundle native library (Linux)
         if: runner.os == 'Linux'
-        run: cp build/native/liblightsout.so dist/${{ matrix.rid }}/
+        run: cp build/native/liblightsout.so dist/$RID/
 
       - name: Bundle native library (macOS)
         if: runner.os == 'macOS'
-        run: cp build/native/liblightsout.dylib dist/${{ matrix.rid }}/
+        run: cp build/native/liblightsout.dylib dist/$RID/
 
       - name: Drop debug symbols
         shell: bash
-        run: rm -rf dist/${{ matrix.rid }}/*.pdb dist/${{ matrix.rid }}/*.dbg dist/${{ matrix.rid }}/*.dSYM
+        run: rm -rf dist/$RID/*.pdb dist/$RID/*.dbg dist/$RID/*.dSYM
 
       - name: Show package contents
         shell: bash
-        run: ls -la dist/${{ matrix.rid }}
+        run: ls -la dist/$RID
 
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: lightsout-${{ matrix.rid }}
-          path: dist/${{ matrix.rid }}
+          name: lightsout-${{ env.RID }}
+          path: dist/$RID
           if-no-files-found: error
 
   # ------------------------------------------------------------- release
