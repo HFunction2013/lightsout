@@ -161,7 +161,7 @@ internal sealed class BoardView : Control
         {
             _hoverRow = r;
             _hoverCol = c;
-            Cursor = r >= 0 ? new Cursor(StandardCursorType.Hand) : Cursors.Default;
+            Cursor = r >= 0 ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow);
             InvalidateVisual();
         }
     }
@@ -173,7 +173,7 @@ internal sealed class BoardView : Control
         {
             _hoverRow = -1;
             _hoverCol = -1;
-            Cursor = Cursors.Default;
+            Cursor = new Cursor(StandardCursorType.Arrow);
             InvalidateVisual();
         }
     }
