@@ -1,0 +1,22 @@
+# build output
+build/
+dist/
+artifacts/
+bin/
+obj/
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+*.ilk
+*.obj
+
+# editors
+.vs/
+.vscode/
+.idea/
+
+# os
+.DS_Store
+Thumbs.db

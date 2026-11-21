@@ -1,0 +1,124 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------- native
+  native:
+    name: solver (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/native -j 4 --config Release
+
+      - name: Self test (Linux)
+        if: runner.os == 'Linux'
+        run: LD_LIBRARY_PATH=build/native ./build/native/selftest
+
+      - name: Self test (Windows)
+        if: runner.os == 'Windows'
+        run: ./build/native/Release/selftest.exe
+
+  # --------------------------------------------------------------- app
+  app:
+    name: app (${{ matrix.rid }})
+    needs: native
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            asset: lightsout-1.0.0-win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            asset: lightsout-1.0.0-linux-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install NativeAOT prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Configure native library
+        run: cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build native library
+        run: cmake --build build/native -j 4 --config Release
+
+      - name: Publish Avalonia app (NativeAOT)
+        run: dotnet publish src/LightsOut/LightsOut.csproj -c Release -r ${{ matrix.rid }} -o dist/${{ matrix.rid }} --nologo
+
+      - name: Bundle native library (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Copy-Item build/native/Release/lightsout.dll dist/${{ matrix.rid }}/
+
+      - name: Bundle native library (Linux)
+        if: runner.os == 'Linux'
+        run: cp build/native/liblightsout.so dist/${{ matrix.rid }}/
+
+      - name: Show package contents
+        shell: bash
+        run: ls -la dist/${{ matrix.rid }}
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.rid }}
+          if-no-files-found: error
+
+  # ------------------------------------------------------------- release
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: app
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Pack release archives
+        run: |
+          cd artifacts
+          for d in lightsout-*; do
+            (cd "$d" && zip -r "../$d.zip" .)
+          done
+          ls -la
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
